@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://hlll114.github.io/cute-rush/sitemap.xml
