@@ -303,7 +303,8 @@
     G.bestDist = parseInt(localStorage.getItem('cr_bestdist') || '0', 10) || 0;
   } catch(e){}
 
-  const P = { x: 0, tx: 0, y: 0, vy: 0, air: false, slide: 0, lean: 0 };
+  const P = { x: 0, tx: 0, y: 0, vy: 0, air: false, slide: 0, lean: 0, crouch: 0, stretch: 1 };
+  const SLIDE_T = .62;
   let objs = [];
   let parts = [];
   let pops = [];
@@ -819,20 +820,45 @@
   /* ================= 主角 ================= */
   function drawKart(){
     const px = LW * .5 + P.x * LANE_U;
-    const bob = P.air ? 0 : Math.sin(G.t * 9) * 2.4;
+    const grounded = !P.air && P.slide <= 0 && P.crouch < .2;
+    const bob = grounded ? Math.sin(G.t * 9) * 2.4 : 0;
     const py = BASE_Y + bob - P.y;
     const lean = clamp((P.tx - P.x) * 1.1, -.3, .3);
-    const slideK = P.slide > 0 ? clamp(P.slide / .62, 0, 1) : 0;
+    const crouch = P.crouch;
+    const st = P.stretch;
+    const airRot = P.air ? clamp(-P.vy / 5200, -.16, .2) : 0;
 
-    // 影子
-    const shs = clamp(1 - P.y / 420, .35, 1);
-    ctx.fillStyle = 'rgba(50,30,70,' + (.22 * shs) + ')';
-    ctx.beginPath(); ctx.ellipse(px, BASE_Y + 12, 62 * shs, 16 * shs, 0, 0, 7); ctx.fill();
+    // 影子：跳得越高越小越淡，滑铲时压扁拉长
+    const shs = clamp(1 - P.y / 520, .32, 1);
+    ctx.save();
+    ctx.globalAlpha = .26 * shs;
+    ctx.fillStyle = 'rgb(50,30,70)';
+    ctx.beginPath();
+    ctx.ellipse(px, BASE_Y + 12, 62 * shs * (1 + crouch * .18), 16 * shs * (1 - crouch * .22), 0, 0, 7);
+    ctx.fill();
+    ctx.restore();
 
+    // 起跳 / 落地时的速度弧线
+    if (P.air || P.stretch < .98){
+      ctx.save();
+      ctx.strokeStyle = 'rgba(255,255,255,' + (P.air ? .38 : .5) + ')';
+      ctx.lineWidth = 4; ctx.lineCap = 'round';
+      const base = BASE_Y + 6;
+      for (let i = 0; i < 3; i++){
+        const w = 30 + i * 22, yy = base - i * 9;
+        ctx.globalAlpha = (1 - i * .3) * (.55 + Math.sin(G.t * 18 + i) * .2);
+        ctx.beginPath(); ctx.moveTo(px - w, yy); ctx.quadraticCurveTo(px, yy + 14, px + w, yy); ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    // ---- 身体（拉伸 / 压扁，不带动脑袋） ----
+    const sy = st * (1 - crouch * .32);
+    const sx = (1 / st) * (1 + crouch * .22);
     ctx.save();
     ctx.translate(px, py);
-    ctx.rotate(lean * .12);
-    if (slideK > 0) ctx.scale(1 + slideK * .12, 1 - slideK * .34);
+    ctx.rotate(lean * .12 + airRot + crouch * .1);
+    ctx.scale(sx, sy);
 
     // 尾翼
     ctx.fillStyle = '#ff8fbf';
@@ -855,13 +881,29 @@
     ctx.fillStyle = '#8b7aa3';
     rr(ctx, -60, -12, 6, 10, 3); ctx.fill();
     rr(ctx, 53, -12, 6, 10, 3); ctx.fill();
+    ctx.restore();
 
-    // 脑袋
-    const hy = -74 + (P.air ? 0 : Math.sin(G.t * 9 + 1) * 1.6) + slideK * 22;
+    // 滑铲时的地面拖痕
+    if (crouch > .25){
+      ctx.save();
+      ctx.globalAlpha = .55 * crouch;
+      ctx.strokeStyle = 'rgba(255,255,255,.95)';
+      ctx.lineWidth = 3.5; ctx.lineCap = 'round';
+      for (let i = 0; i < 2; i++){
+        const y0 = BASE_Y + 8 + i * 12;
+        ctx.beginPath(); ctx.moveTo(px - 44, y0); ctx.lineTo(px - 104 - i * 14, y0 + 28); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(px + 44, y0); ctx.lineTo(px + 104 + i * 14, y0 + 28); ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    // ---- 脑袋：始终是圆的，只跟着位移 / 旋转 ----
+    const headScale = 1 - crouch * .10;
+    const headY = -74 * sy + (P.air ? -6 : Math.sin(G.t * 9 + 1) * 1.6) - crouch * 8;
     ctx.save();
-    ctx.translate(0, hy);
-    ctx.rotate(lean * .45 + (P.air ? .06 : 0));
-    const r = 46;
+    ctx.translate(px + lean * 8, py + headY);
+    ctx.rotate(lean * .45 + airRot * 1.3 + crouch * .22);
+    const r = 46 * headScale;
     ctx.save();
     ctx.shadowColor = 'rgba(255,120,170,.5)'; ctx.shadowBlur = 20;
     ctx.fillStyle = '#fff';
@@ -877,8 +919,6 @@
       ctx.beginPath(); ctx.arc(0, 0, r, 0, 7); ctx.fill();
       face(ctx, 0, 0, 2.2, 'happy');
     }
-    ctx.restore();
-
     ctx.restore();
 
     // 护盾光圈
@@ -910,6 +950,10 @@
         life: rnd(.35, .75), max: .75, col: color, size: rnd(3, 7), g: 260 });
     }
   }
+  // 地面冲击波（扁平圆环）
+  function ringBurst(x, y, color, r0, r1, life, lw){
+    parts.push({ x, y, vx: 0, vy: 0, life, max: life, col: color, size: lw || 6, g: 0, ring: [r0, r1] });
+  }
   function popText(x, y, text, color){
     pops.push({ x, y, text, color: color || '#ffd84f', life: 0, max: .95 });
   }
@@ -936,6 +980,7 @@
     G.nextMilestone = 300; G.level = 1; G.shield = false; G.magnet = 0;
     G.banner = null; G.biome = 0; G.graceT = 2.2;
     P.x = 0; P.tx = 0; P.y = 0; P.vy = 0; P.air = false; P.slide = 0; P.lean = 0;
+    P.crouch = 0; P.stretch = 1;
     updateHearts(); updateScore(true); updateBuffs();
   }
 
@@ -989,17 +1034,22 @@
   function doJump(){
     if (G.state !== 'play') return;
     if (P.air) return;
-    P.vy = -JUMP_V; P.air = true; P.slide = 0;
+    P.vy = JUMP_V; P.air = true; P.slide = 0; P.crouch = 0;
+    P.stretch = 1.18;
     sfx.jump();
     const px = LW * .5 + P.x * LANE_U;
-    burst(px, BASE_Y, 'rgba(255,255,255,.9)', 6, 90, -30);
+    ringBurst(px, BASE_Y + 10, 'rgba(255,255,255,.9)', 16, 78, .42, 7);
+    burst(px, BASE_Y, 'rgba(255,255,255,.95)', 12, 150, 110);
+    ringBurst(px, BASE_Y + 10, 'rgba(255,190,220,.85)', 8, 46, .28, 5);
   }
   function doSlide(){
     if (G.state !== 'play') return;
     if (P.slide > .05) return;
-    P.slide = .62;
-    if (P.air){ P.vy = Math.max(P.vy, 1100); }
+    P.slide = SLIDE_T;
+    if (P.air){ P.vy = Math.min(P.vy, -1100); P.stretch = 1.06; }
     sfx.slide();
+    const px = LW * .5 + P.x * LANE_U;
+    burst(px, BASE_Y - 6, 'rgba(255,235,245,.9)', 10, 170, 20);
   }
 
   window.addEventListener('keydown', e => {
@@ -1207,14 +1257,40 @@
     // 玩家横向 + 跳跃 + 滑铲
     P.x += (P.tx - P.x) * Math.min(1, dt * 14);
     if (P.air){
-      P.vy += GRAV * dt; P.y += P.vy * dt;
-      if (P.y >= 0){
-        P.y = 0; P.vy = 0; P.air = false; sfx.land();
+      P.vy -= GRAV * dt; P.y += P.vy * dt;
+      const px0 = LW * .5 + P.x * LANE_U;
+      // 跳跃拖影
+      if (Math.random() < .8){
+        parts.push({ x: px0 + rnd(-16, 16), y: BASE_Y - 34 - P.y + rnd(-8, 8),
+          vx: rnd(-14, 14), vy: rnd(40, 110), life: .34, max: .34,
+          col: 'rgba(255,255,255,.8)', size: rnd(4, 9), g: 90 });
+      }
+      if (P.y <= 0){
+        P.y = 0; P.vy = 0; P.air = false; P.stretch = .82;
+        G.shake = Math.max(G.shake, 6);
+        sfx.land();
         const px = LW * .5 + P.x * LANE_U;
-        burst(px, BASE_Y, 'rgba(255,255,255,.85)', 7, 110, -40);
+        ringBurst(px, BASE_Y + 10, 'rgba(255,255,255,.9)', 24, 104, .5, 8);
+        ringBurst(px, BASE_Y + 10, 'rgba(255,200,225,.8)', 10, 58, .3, 5);
+        burst(px, BASE_Y, 'rgba(255,255,255,.9)', 14, 200, 45);
       }
     }
-    if (P.slide > 0) P.slide = Math.max(0, P.slide - dt);
+    // 拉伸回弹
+    P.stretch += (1 - P.stretch) * Math.min(1, dt * 13);
+    // 下蹲曲线：快速蹲下 → 保持 → 起身
+    if (P.slide > 0){
+      const elapsed = SLIDE_T - P.slide;
+      P.crouch = Math.min(1, elapsed / .07, P.slide / .11);
+      if (Math.random() < .7){
+        const px1 = LW * .5 + P.x * LANE_U;
+        parts.push({ x: px1 + rnd(-34, 34), y: BASE_Y - rnd(0, 12),
+          vx: rnd(-70, 70), vy: rnd(-60, -10), life: .3, max: .3,
+          col: 'rgba(255,240,250,.85)', size: rnd(3, 7), g: 40 });
+      }
+      P.slide = Math.max(0, P.slide - dt);
+    } else if (P.crouch > 0){
+      P.crouch = Math.max(0, P.crouch - dt * 9);
+    }
 
     if (G.inv > 0) G.inv = Math.max(0, G.inv - dt);
     if (G.graceT > 0) G.graceT = Math.max(0, G.graceT - dt);
@@ -1478,8 +1554,16 @@
     // 粒子
     for (const p of parts){
       const a = clamp(p.life / p.max, 0, 1);
-      ctx.globalAlpha = a; ctx.fillStyle = p.col;
-      ctx.beginPath(); ctx.arc(p.x, p.y, p.size * (.4 + a * .8), 0, 7); ctx.fill();
+      ctx.globalAlpha = a;
+      if (p.ring){
+        const k = 1 - p.life / p.max;
+        const rx = lerp(p.ring[0], p.ring[1], Math.pow(k, .6)), ry = rx * .30;
+        ctx.strokeStyle = p.col; ctx.lineWidth = Math.max(1, p.size * a);
+        ctx.beginPath(); ctx.ellipse(p.x, p.y, rx, ry, 0, 0, 7); ctx.stroke();
+      } else {
+        ctx.fillStyle = p.col;
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.size * (.4 + a * .8), 0, 7); ctx.fill();
+      }
     }
     ctx.globalAlpha = 1;
 
@@ -1577,12 +1661,39 @@
       hide('scrStart');
       G.dist = 268; G.stars = 7; G.speed = 26; G.graceT = 4;
       const dm = q.match(/d=(\d+)/); if (dm) G.dist = parseInt(dm[1], 10);
+      const stq = (q.match(/state=(\w+)/) || [])[1] || '';
+      if (stq === 'jump'){ P.air = true; P.vy = 40; P.y = 150; }
+      else if (stq === 'slide'){ P.slide = .42; P.crouch = 1; }
       const spread = [[-1, 14, 'cone'], [0, 20, 'hurdle'], [1, 27, 'bar'], [-1, 32, 'wall'], [-1, 6, 'crate'], [1, 9, 'cat']];
       for (const [l, z, k] of spread) addObj(k, l, z);
       addObj('star', 0, 16); addObj('star', 0, 11); addObj('shield', 1, 4);
       say('稳稳的');
       updateScore(true);
       if (shotParam === 'over'){ G.dist = 806; G.stars = 23; G.best = 520; updateScore(true); gameOver(); }
+    }
+    if (q.indexOf('test=1') >= 0){
+      const out = [];
+      const runCase = (kind, action, label) => {
+        reset(); G.state = 'play'; G.graceT = 0; G.spawnT = 999; G.inv = 0;
+        objs = []; addObj(kind, 0, 6);
+        let done = false;
+        for (let i = 0; i < 150; i++){
+          if (!done && objs.length && objs[0].z < 4.2){ action(); done = true; }
+          update(1 / 60);
+          if (G.state !== 'play') break;
+        }
+        out.push(label + ':' + (G.lives === 2 ? 'PASS' : 'FAIL(lives=' + G.lives + ')'));
+      };
+      runCase('hurdle', () => doJump(), 'jump-hurdle');
+      runCase('bar', () => doSlide(), 'slide-bar');
+      runCase('wall', () => move(1), 'dodge-wall');
+      // 不跳不滑应该撞
+      reset(); G.state = 'play'; G.graceT = 0; G.spawnT = 999; G.inv = 0;
+      objs = []; addObj('hurdle', 0, 6);
+      for (let i = 0; i < 150; i++) update(1 / 60);
+      out.push('noinput:' + (G.lives === 1 ? 'PASS' : 'FAIL(lives=' + G.lives + ')'));
+      window.__dbg.textContent = out.join('  ');
+      reset(); G.state = 'ready';
     }
     if (q.indexOf('fast') >= 0){
       const log = [];
