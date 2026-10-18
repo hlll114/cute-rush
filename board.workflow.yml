@@ -1,0 +1,31 @@
+# 把这个文件的内容复制到 .github/workflows/board.yml 才会生效
+# （网页版：仓库 → Add file → Create new file → 输入 .github/workflows/board.yml → 粘贴 → Commit）
+name: sync-leaderboard
+
+on:
+  schedule:
+    - cron: '13 */2 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Merge live scores into board.json
+        run: node sync-board.mjs
+      - name: Commit if changed
+        run: |
+          git config user.name  "cute-rush-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add board.json
+          if ! git diff --staged --quiet; then
+            git commit -m "board: sync $(date -u +%FT%TZ)"
+            git push
+          fi
