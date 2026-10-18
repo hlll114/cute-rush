@@ -70,7 +70,7 @@
 
   /* ---------- screens ---------- */
   .screen{position:absolute;inset:0;z-index:6;display:flex;flex-direction:column;align-items:center;
-    justify-content:center;gap:10px;padding:26px;text-align:center;
+    justify-content:center;gap:10px;padding:22px 26px;text-align:center;overflow-y:auto;
     background:linear-gradient(180deg,rgba(255,240,248,.62),rgba(226,240,255,.72));
     backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px);transition:opacity .28s}
   .screen.hidden{opacity:0;pointer-events:none}
@@ -104,6 +104,38 @@
   .newrec{font-size:14px;font-weight:900;color:#fff;background:linear-gradient(90deg,#ffb347,#ff6aa8);
     padding:5px 16px;border-radius:999px;box-shadow:0 5px 12px rgba(255,140,90,.35);animation:pop 1s ease infinite}
   .biomes{display:flex;gap:6px;justify-content:center;font-size:11px;color:#9b7aa4;font-weight:800;flex-wrap:wrap;max-width:330px}
+
+  /* ---------- 头像 / 昵称 / 排行榜 ---------- */
+  .heroWrap{position:relative;display:inline-block}
+  .heroEdit{position:absolute;right:-10px;bottom:-6px;border:0;background:linear-gradient(180deg,#ffa1cb,#ff5f9b);
+    color:#fff;font-size:11px;font-weight:900;padding:6px 12px;border-radius:999px;cursor:pointer;
+    font-family:inherit;box-shadow:0 4px 10px rgba(220,80,140,.35);letter-spacing:.5px}
+  .heroEdit:active{transform:scale(.94)}
+  .nameRow{display:flex;align-items:center;gap:6px;background:rgba(255,255,255,.92);border-radius:999px;
+    padding:6px 10px 6px 14px;box-shadow:0 6px 16px rgba(180,110,160,.18)}
+  .nameRow span{font-size:12px;font-weight:900;color:#b0759f;white-space:nowrap}
+  #nameInput{border:0;background:transparent;font-family:inherit;font-size:15px;font-weight:900;color:#e2568f;
+    width:140px;outline:none;text-align:left;padding:2px 0}
+  #nameInput::placeholder{color:#e8b6d4;font-weight:700}
+  .btn.small{font-size:13px;padding:9px 18px;letter-spacing:.5px}
+  .board{width:100%;max-width:360px;max-height:54vh;overflow-y:auto;background:rgba(255,255,255,.94);
+    border-radius:18px;padding:8px;box-shadow:0 12px 28px rgba(180,110,160,.22);-webkit-overflow-scrolling:touch}
+  .brow{display:flex;align-items:center;gap:9px;padding:7px 9px;border-radius:12px;font-size:14px}
+  .brow.me{background:#ffe9f3;box-shadow:inset 0 0 0 2px #ffc2dd}
+  .brow .rk{width:22px;text-align:center;font-weight:900;color:#c9a0bb;font-size:13px;flex:0 0 auto}
+  .brow .rk.t1{color:#ffab00}.brow .rk.t2{color:#9fa6c0}.brow .rk.t3{color:#d08a5a}
+  .brow img{width:30px;height:30px;border-radius:50%;background:#ffd9ea;object-fit:cover;flex:0 0 auto;
+    box-shadow:0 2px 6px rgba(180,110,160,.25)}
+  .avph{width:30px;height:30px;border-radius:50%;flex:0 0 auto;display:grid;place-items:center;
+    background:linear-gradient(180deg,#ffc2dd,#ff8fbb);color:#fff;font-size:13px;font-weight:900;
+    box-shadow:0 2px 6px rgba(180,110,160,.25)}
+  .brow .nm{flex:1;font-weight:800;color:#6b4d7a;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left}
+  .brow .sc{font-weight:900;color:#e2568f;font-variant-numeric:tabular-nums}
+  .empty{color:#b09ab5;font-size:13px;padding:20px 10px;text-align:center;line-height:1.7}
+  .rankLine{font-size:14px;font-weight:900;color:#c0558c;min-height:20px}
+  .toast{position:absolute;left:50%;bottom:130px;transform:translateX(-50%);background:rgba(60,40,70,.88);
+    color:#fff;font-size:13px;font-weight:800;padding:9px 18px;border-radius:999px;z-index:20;
+    opacity:0;transition:opacity .25s;pointer-events:none;white-space:nowrap;max-width:90%}
 
   /* ---------- pads ---------- */
   #pads{position:absolute;inset:auto 0 0 0;display:flex;justify-content:space-between;align-items:flex-end;
@@ -150,15 +182,28 @@
       <button class="pad big" id="padJump">▲</button>
     </div>
   </div>
+  <input type="file" id="fileAvatar" accept="image/*" style="display:none">
 
   <div class="screen" id="scrStart">
-    <img class="hero" id="hero" alt="主角">
+    <div class="heroWrap">
+      <img class="hero" id="hero" alt="主角">
+      <button class="heroEdit" id="btnAvatar">换头像</button>
+    </div>
     <h1>可爱冲刺<small>CUTE RUSH · 跑酷版</small></h1>
+    <div class="nameRow"><span>昵称</span><input id="nameInput" maxlength="10" placeholder="取个名字上榜"></div>
     <p class="tip">变道躲障碍 · <b>▲ 跳</b>过矮栏杆 · <b>▼ 滑</b>过横杆<br>⭐加分 · ❤回血 · 护盾挡一次撞击 · 磁铁吸星星</p>
     <div class="keys"><span class="kbd">← →</span><span class="kbd">空格 跳</span><span class="kbd">↓ 滑</span><span class="kbd">手机滑动</span></div>
     <button class="btn" id="btnStart">开 始 奔 跑</button>
-    <div class="card" style="margin-top:4px"><div><span>最高分</span><b id="bestStart">0</b></div><div><span>最远距离</span><b id="bestDist">0 m</b></div></div>
+    <button class="btn ghost small" id="btnBoard">🏆 全球排行榜</button>
+    <div class="card" style="margin-top:2px"><div><span>最高分</span><b id="bestStart">0</b></div><div><span>最远距离</span><b id="bestDist">0 m</b></div></div>
     <div class="biomes">糖果公园 · 樱花小径 · 霓虹夜街 · 海边公路 · 云端幻境</div>
+  </div>
+
+  <div class="screen hidden" id="scrBoard">
+    <h1 style="font-size:28px">🏆 全球排行榜</h1>
+    <div class="board" id="boardList"></div>
+    <div class="rankLine" id="boardTip"></div>
+    <button class="btn ghost small" id="btnBoardBack">返 回</button>
   </div>
 
   <div class="screen hidden" id="scrOver">
@@ -166,9 +211,11 @@
     <h1 style="font-size:30px" id="overTitle">撞到啦！</h1>
     <div class="bigscore" id="finalScore">0</div>
     <div class="newrec hidden" id="newRecord">🎉 新纪录！</div>
+    <div class="rankLine" id="rankLine"></div>
     <div class="card"><div><span>距离</span><b id="finalDist">0 m</b></div><div><span>星星</span><b id="finalCoins">0</b></div><div><span>最高分</span><b id="bestOver">0</b></div></div>
     <button class="btn" id="btnRetry">再 来 一 次</button>
-    <button class="btn ghost" id="btnHome">返回首页</button>
+    <button class="btn ghost small" id="btnOverBoard">🏆 看排行榜</button>
+    <button class="btn ghost small" id="btnHome">返回首页</button>
   </div>
 
   <div class="screen hidden" id="scrPause">
@@ -1014,6 +1061,7 @@
     for (let i = 0; i < 26; i++){
       burst(rnd(40, LW - 40), rnd(60, 300), pick(['#ff9ec4', '#ffd84f', '#8fe8c4', '#a9d6ff', '#ffffff']), 1, 120, 120);
     }
+    submitScore();
   }
 
   function updateBestLabels(){
@@ -1124,6 +1172,283 @@
     try { localStorage.setItem('cr_mute', muted ? '1' : '0'); } catch(e){}
     if (!muted) tone(880, .08, 'sine', .1);
   };
+
+  // 头像 / 昵称 / 排行榜
+  const fileInput = document.getElementById('fileAvatar');
+  document.getElementById('btnAvatar').onclick = () => fileInput.click();
+  fileInput.onchange = (e) => {
+    const f = e.target.files && e.target.files[0];
+    processAvatarFile(f);
+    e.target.value = '';
+  };
+  document.getElementById('btnBoard').onclick = openBoard;
+  document.getElementById('btnOverBoard').onclick = openBoard;
+  document.getElementById('btnBoardBack').onclick = () => {
+    hide('scrBoard');
+    if (G.state === 'over') show('scrOver'); else show('scrStart');
+  };
+
+  /* ================= 自定义头像 / 昵称 ================= */
+  const DEFAULT_AVATAR = AVATAR_SRC;
+  let myAvatar = '';
+  let myName = '';
+  let uid = '';
+  try {
+    myAvatar = localStorage.getItem('cr_avatar') || '';
+    myName = localStorage.getItem('cr_name') || '';
+    uid = localStorage.getItem('cr_uid') || '';
+  } catch(e){}
+  if (!uid){
+    uid = 'p' + Math.random().toString(36).slice(2, 8) + Date.now().toString(36).slice(-4);
+    try { localStorage.setItem('cr_uid', uid); } catch(e){}
+  }
+
+  const nameInput = document.getElementById('nameInput');
+  nameInput.value = myName;
+  nameInput.addEventListener('input', () => {
+    myName = nameInput.value.replace(/[<>&"'`]/g, '').slice(0, 10);
+    if (nameInput.value !== myName) nameInput.value = myName;
+    try { localStorage.setItem('cr_name', myName); } catch(e){}
+  });
+  nameInput.addEventListener('blur', () => { nameInput.blur(); });
+
+  function applyAvatar(url){
+    myAvatar = url || '';
+    headReady = false;
+    headImg.src = myAvatar || DEFAULT_AVATAR;
+    const a = document.getElementById('hero'), b = document.getElementById('hero2');
+    if (a) a.src = headImg.src;
+    if (b) b.src = headImg.src;
+  }
+
+  function processAvatarFile(file){
+    if (!file) return;
+    if (file.size > 12 * 1024 * 1024){ toast('图片太大了，换一张小点的～'); return; }
+    const img = new Image();
+    img.onload = function(){
+      try {
+        const S = 320;
+        const c = document.createElement('canvas'); c.width = c.height = S;
+        const g = c.getContext('2d');
+        const sc = Math.max(S / img.width, S / img.height);
+        const w = img.width * sc, h = img.height * sc;
+        g.drawImage(img, (S - w) / 2, (S - h) / 2, w, h);
+        g.globalCompositeOperation = 'destination-in';
+        g.beginPath(); g.arc(S / 2, S / 2, S / 2 - 3, 0, 7); g.fill();
+        g.globalCompositeOperation = 'source-over';
+        g.strokeStyle = '#ffffff'; g.lineWidth = 16;
+        g.beginPath(); g.arc(S / 2, S / 2, S / 2 - 7, 0, 7); g.stroke();
+        g.strokeStyle = '#ff92b8'; g.lineWidth = 7;
+        g.beginPath(); g.arc(S / 2, S / 2, S / 2 - 16, 0, 7); g.stroke();
+        const url = c.toDataURL('image/png');
+        try { localStorage.setItem('cr_avatar', url); } catch(e){}
+        applyAvatar(url);
+        toast('换好啦！这样够可爱了吧');
+      } catch(e){ toast('处理失败，换一张试试'); }
+      if (img.src.startsWith('blob:')) URL.revokeObjectURL(img.src);
+    };
+    img.onerror = function(){ toast('这张图打不开，换一张试试'); };
+    img.src = URL.createObjectURL(file);
+  }
+
+  let toastTimer = 0;
+  function toast(msg){
+    let el = document.getElementById('toast');
+    if (!el){
+      el = document.createElement('div'); el.id = 'toast'; el.className = 'toast';
+      app.appendChild(el);
+    }
+    el.textContent = msg;
+    el.style.opacity = '1';
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function(){ el.style.opacity = '0'; }, 2000);
+  }
+
+  /* ================= 全球排行榜 =================
+     两档后端：
+     · 完整版（Supabase）：显示头像、人数不限，填下面两个值即启用
+     · 轻量版（免注册公有存储）：只存昵称+分数，上限 12 人（请求体约 1KB 限制）
+  */
+  const SB_URL = '';   // 例：https://abcdefgh.supabase.co
+  const SB_KEY = '';   // Supabase anon public key
+  const FULL = !!(SB_URL && SB_KEY);
+  const LB_API = 'https://api.restful-api.dev/objects/ff808181a09d98f701a14f5ae7b70c65';
+  const LB_MAX = FULL ? 50 : 12;
+  let lbCache = [];
+
+  function safeAvatar(a){ return (typeof a === 'string' && a.indexOf('data:image/') === 0) ? a : ''; }
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, function(c){
+      return ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' })[c];
+    });
+  }
+
+  async function lbLoad(){
+    if (FULL){
+      const r = await fetch(SB_URL + '/rest/v1/scores?select=uid,name,score,dist,avatar&order=score.desc&limit=' + LB_MAX,
+        { headers: { apikey: SB_KEY, authorization: 'Bearer ' + SB_KEY }, cache: 'no-store' });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const arr = await r.json();
+      return arr.map(function(x){ return { id: x.uid, n: x.name, s: x.score, d: x.dist, a: x.avatar, t: 0 }; });
+    }
+    const r = await fetch(LB_API + '?t=' + Date.now(), { cache: 'no-store' });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const j = await r.json();
+    const e = (j && j.data && Array.isArray(j.data.entries)) ? j.data.entries : [];
+    return e.filter(function(x){ return x && typeof x.s === 'number' && isFinite(x.s); })
+            .sort(function(a, b){ return b.s - a.s; })
+            .slice(0, LB_MAX);
+  }
+
+  async function lbSave(list){
+    const r = await fetch(LB_API, {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ name: 'cute-rush-board-v1', data: { entries: list.slice(0, LB_MAX), updated: Date.now() } })
+    });
+    if (!r.ok) throw new Error('PUT ' + r.status);
+  }
+
+  async function sbUpsert(entry){
+    const r = await fetch(SB_URL + '/rest/v1/scores', {
+      method: 'POST',
+      headers: {
+        apikey: SB_KEY, authorization: 'Bearer ' + SB_KEY,
+        'content-type': 'application/json',
+        prefer: 'resolution=merge-duplicates,return=minimal'
+      },
+      body: JSON.stringify([{
+        uid: entry.id, name: entry.n, score: entry.s, dist: entry.d,
+        avatar: entry.a || '', updated: new Date().toISOString()
+      }])
+    });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+  }
+
+  function avatarThumb(){
+    try {
+      const S = 40;
+      const c = document.createElement('canvas'); c.width = c.height = S;
+      const g = c.getContext('2d');
+      g.fillStyle = '#ffd9ea'; g.fillRect(0, 0, S, S);
+      const im = headImg;
+      if (im && im.complete && im.naturalWidth){
+        const sc = Math.max(S / im.naturalWidth, S / im.naturalHeight);
+        const w = im.naturalWidth * sc, h = im.naturalHeight * sc;
+        g.save(); g.beginPath(); g.arc(S / 2, S / 2, S / 2, 0, 7); g.clip();
+        g.drawImage(im, (S - w) / 2, (S - h) / 2, w, h);
+        g.restore();
+      }
+      return c.toDataURL('image/jpeg', 0.62);
+    } catch(e){ return ''; }
+  }
+
+  function myEntry(score, dist){
+    return {
+      id: uid,
+      n: (myName || '无名跑者').slice(0, 10),
+      s: Math.max(0, Math.round(score)),
+      d: Math.max(0, Math.round(dist)),
+      a: FULL ? avatarThumb() : '',
+      t: Date.now()
+    };
+  }
+
+  // 读 → 合并 → 写，返回我的名次（1 开始）
+  async function lbPush(entry){
+    if (FULL){
+      await sbUpsert(entry);
+      const list = await lbLoad();
+      lbCache = list;
+      const rank = list.findIndex(function(e){ return e.id === uid; });
+      return rank >= 0 ? rank + 1 : null;
+    }
+    const list = await lbLoad();
+    const i = list.findIndex(function(e){ return e.id === uid; });
+    if (i >= 0){
+      if (list[i].s >= entry.s){ list[i].n = entry.n; if (entry.a) list[i].a = entry.a; }
+      else list[i] = entry;
+    } else {
+      list.push(entry);
+    }
+    list.sort(function(a, b){ return b.s - a.s; });
+    const top = list.slice(0, LB_MAX);
+    await lbSave(top);
+    lbCache = top;
+    const rank = top.findIndex(function(e){ return e.id === uid; });
+    return rank >= 0 ? rank + 1 : null;
+  }
+
+  async function submitScore(){
+    const line = document.getElementById('rankLine');
+    line.textContent = '正在上传成绩…';
+    const entry = myEntry(G.score, G.dist);
+    if (!entry.s){ line.textContent = ''; return; }
+    try {
+      const rank = await lbPush(entry);
+      line.textContent = rank ? ('🌍 全球第 ' + rank + ' 名！') : '成绩已记录';
+    } catch(e){
+      try { localStorage.setItem('cr_pending', JSON.stringify(entry)); } catch(_){}
+      line.textContent = '排行榜暂时连不上，成绩先存在本机' + (window.__lbDebug ? ' [' + (e && e.message) + ']' : '');
+    }
+  }
+
+  async function flushPending(){
+    let raw = null;
+    try { raw = localStorage.getItem('cr_pending'); } catch(e){}
+    if (!raw) return;
+    try {
+      const e = JSON.parse(raw);
+      if (e && typeof e.s === 'number' && e.s > 0){
+        const rank = await lbPush(e);
+        if (rank) { try { localStorage.removeItem('cr_pending'); } catch(_){} }
+      }
+    } catch(_){}
+  }
+
+  function renderBoard(list){
+    const el = document.getElementById('boardList');
+    if (!list.length){
+      el.innerHTML = '<div class="empty">还没有人上榜～<br>跑一把，第一个留下名字的就是你！</div>';
+      return;
+    }
+    let html = '';
+    for (let i = 0; i < list.length; i++){
+      const e = list[i], rk = i + 1;
+      const cls = rk === 1 ? 't1' : rk === 2 ? 't2' : rk === 3 ? 't3' : '';
+      const me = e.id === uid ? ' me' : '';
+      const av = safeAvatar(e.a);
+      html += '<div class="brow' + me + '"><span class="rk ' + cls + '">' + rk + '</span>' +
+        (av ? '<img src="' + av + '" alt="">'
+            : '<span class="avph">' + escapeHtml((e.n || '?').slice(0, 1)) + '</span>') +
+        '<span class="nm">' + escapeHtml(e.n || '无名跑者') + '</span>' +
+        '<span class="sc">' + (e.s | 0) + '</span></div>';
+    }
+    el.innerHTML = html;
+  }
+
+  async function openBoard(){
+    show('scrBoard');
+    const el = document.getElementById('boardList');
+    const tip = document.getElementById('boardTip');
+    el.innerHTML = '<div class="empty">加载中…</div>';
+    tip.textContent = '';
+    try {
+      let list = await lbLoad();
+      if (!list.some(function(e){ return e.id === uid; }) && G.best > 0){
+        try { await lbPush(myEntry(G.best, G.bestDist)); list = await lbLoad(); } catch(_){}
+      }
+      lbCache = list;
+      renderBoard(list);
+      const rank = list.findIndex(function(e){ return e.id === uid; });
+      tip.textContent = rank >= 0
+        ? ('你排第 ' + (rank + 1) + ' 名 · 共 ' + list.length + ' 位玩家')
+        : '你还没上榜，跑一把就能留名～';
+    } catch(e){
+      renderBoard(lbCache);
+      tip.textContent = '排行榜暂时连不上，稍后再试';
+    }
+  }
 
   /* ================= HUD ================= */
   const elLives = document.getElementById('lives');
@@ -1640,12 +1965,13 @@
   function boot(){
     resize();
     updateBestLabels(); updateHearts(); updateBuffs();
-    document.getElementById('hero').src = AVATAR_SRC;
-    document.getElementById('hero2').src = AVATAR_SRC;
+    applyAvatar(myAvatar);
+    setTimeout(flushPending, 1500);
 
     const q = location.search;
     const shotParam = (q.match(/shot=(\w+)/) || [])[1] || '';
     const quick = !!shotParam || q.indexOf('demo') >= 0;
+    window.__lbDebug = !!shotParam;
     if (quick){
       document.head.insertAdjacentHTML('beforeend', '<style>*{transition:none!important;animation:none!important}</style>');
       const dbg = document.createElement('div');
@@ -1654,6 +1980,22 @@
       document.body.appendChild(dbg);
       window.onerror = (m, s, l) => { dbg.textContent = 'ERR ' + m + ' @' + l; };
       window.__dbg = dbg;
+    }
+    // 调试：模拟选图流程（canvas → Blob → File → 同一条处理链路）
+    if (q.indexOf('photo=1') >= 0){
+      const c = document.createElement('canvas'); c.width = c.height = 240;
+      const g = c.getContext('2d');
+      const gr = g.createLinearGradient(0, 0, 240, 240);
+      gr.addColorStop(0, '#6aa9ff'); gr.addColorStop(1, '#ff8fd0');
+      g.fillStyle = gr; g.fillRect(0, 0, 240, 240);
+      g.fillStyle = '#fff'; g.font = 'bold 120px system-ui,sans-serif';
+      g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.fillText('喵', 120, 130);
+      c.toBlob(function(b){ processAvatarFile(new File([b], 'test.png', { type: 'image/png' })); }, 'image/png');
+    }
+    if (shotParam === 'board'){      document.getElementById('scrStart').style.display = 'none';
+      show('scrBoard');
+      openBoard();
     }
     if (shotParam === 'play' || shotParam === 'over' || q.indexOf('demo') >= 0){
       reset(); G.state = 'play';
