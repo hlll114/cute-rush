@@ -1322,8 +1322,14 @@
         if (!e) continue;
         const cur = map.get(e.id);
         if (!cur) { map.set(e.id, e); continue; }
-        // 分数更高者胜；同分则优先保留带头像的那条
-        if (e.s > cur.s || (e.s === cur.s && !cur.a && e.a)) map.set(e.id, e);
+        // 分数更高者胜；同分优先保留带头像的那条
+        if (e.s > cur.s || (e.s === cur.s && !cur.a && e.a)) { map.set(e.id, e); continue; }
+        // 分数没超过时，仍用较新的昵称/头像刷新榜上展示
+        if ((e.t || 0) >= (cur.t || 0)){
+          cur.n = e.n;
+          if (e.a) cur.a = e.a;
+          cur.t = e.t || cur.t;
+        }
       }
     }
     return Array.from(map.values()).sort(function(a, b){ return b.s - a.s; }).slice(0, LB_MAX);
