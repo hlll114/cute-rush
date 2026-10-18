@@ -120,19 +120,20 @@
   .btn.small{font-size:13px;padding:9px 18px;letter-spacing:.5px}
   .board{width:100%;max-width:360px;max-height:42vh;overflow-y:auto;background:rgba(255,255,255,.94);
     border-radius:18px;padding:8px;box-shadow:0 12px 28px rgba(180,110,160,.22);-webkit-overflow-scrolling:touch}
-  .podium{display:flex;align-items:flex-end;justify-content:center;gap:8px}
-  .pod{display:flex;flex-direction:column;align-items:center;gap:2px;width:84px;padding:8px 4px 6px;
-    border-radius:16px 16px 4px 4px;background:linear-gradient(180deg,rgba(255,255,255,.97),rgba(255,236,246,.97));
+  .podium{display:flex;align-items:flex-end;justify-content:center;gap:8px;margin-bottom:4px}
+  .pod{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:2px;width:86px;
+    padding:6px 4px 8px;overflow:hidden;border-radius:16px 16px 6px 6px;
+    background:linear-gradient(180deg,rgba(255,255,255,.97),rgba(255,236,246,.97));
     box-shadow:0 -4px 14px rgba(180,110,160,.18)}
-  .pod.p1{height:112px}.pod.p2{height:94px}.pod.p3{height:82px}
+  .pod.p1{height:124px}.pod.p2{height:108px}.pod.p3{height:98px}
   .pod img,.pod .avph{width:42px;height:42px;border-radius:50%;flex:0 0 auto}
   .pod.p1 img,.pod.p1 .avph{box-shadow:0 0 0 3px #ffd54a}
   .pod.p2 img,.pod.p2 .avph{box-shadow:0 0 0 3px #cfd6e6}
   .pod.p3 img,.pod.p3 .avph{box-shadow:0 0 0 3px #e8b183}
-  .pod .pnm{font-size:11px;font-weight:900;color:#6b4d7a;max-width:78px;overflow:hidden;
-    text-overflow:ellipsis;white-space:nowrap}
-  .pod b{font-size:14px;color:#e2568f;font-weight:900;line-height:1}
-  .pod .medal{font-size:11px;line-height:1}
+  .pod .pnm{font-size:10px;line-height:1.15;font-weight:900;color:#6b4d7a;max-width:78px;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .pod b{font-size:13px;color:#e2568f;font-weight:900;line-height:1}
+  .pod .medal{font-size:12px;line-height:1}
   .btnrow{display:flex;gap:8px}
   .brow{display:flex;align-items:center;gap:9px;padding:7px 9px;border-radius:12px;font-size:14px}
   .brow.me{background:#ffe9f3;box-shadow:inset 0 0 0 2px #ffc2dd}
@@ -1501,8 +1502,9 @@
       const e = list[idx];
       if (!e) return;
       const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : '🥉';
-      ph += '<div class="pod p' + (idx + 1) + '">' + avatarHtml(e) +
+      ph += '<div class="pod p' + (idx + 1) + '">' +
             '<span class="medal">' + medal + '</span>' +
+            avatarHtml(e) +
             '<span class="pnm">' + escapeHtml(e.n || '无名跑者') + '</span>' +
             '<b>' + (e.s | 0) + '</b></div>';
     });
