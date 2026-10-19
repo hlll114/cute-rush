@@ -189,7 +189,7 @@
     <button class="btn" id="btnStart">开 始 奔 跑</button>
     <button class="btn ghost small" id="btnBoard">🏆 全球排行榜</button>
     <div class="card" style="margin-top:2px"><div><span>最高分</span><b id="bestStart">0</b></div><div><span>最远距离</span><b id="bestDist">0 m</b></div></div>
-    <div class="biomes">糖果公园 · 樱花小径 · 霓虹夜街 · 海边公路 · 云端幻境</div>
+    <div class="biomes">糖果公园 · 樱花小径 · 霓虹夜街 · 海边公路 · 云端幻境 · <span style="opacity:.6">v7</span></div>
   </div>
 
   <div class="screen hidden" id="scrBoard">
@@ -1116,9 +1116,9 @@
     }
   }, { passive: false });
 
-  /* 手势：只支持滑动 —— 一次滑动只触发一次动作（变道一条 / 跳 / 滑） */
+  /* 手势：只支持滑动 —— 点屏幕（无论点哪里）不触发任何动作 */
   let ptr = null;
-  const SWIPE_X = 22, SWIPE_Y = 26;
+  const SWIPE_X = 26, SWIPE_Y = 34;
 
   app.addEventListener('pointerdown', e => {
     if (e.target.closest('button')) return;
