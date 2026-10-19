@@ -103,6 +103,8 @@
     -webkit-text-stroke:8px #fff;paint-order:stroke fill;text-shadow:0 8px 0 rgba(255,180,210,.8)}
   .newrec{font-size:14px;font-weight:900;color:#fff;background:linear-gradient(90deg,#ffb347,#ff6aa8);
     padding:5px 16px;border-radius:999px;box-shadow:0 5px 12px rgba(255,140,90,.35);animation:pop 1s ease infinite}
+  /* 之前 .hidden 只作用于 .screen，导致「新纪录」永远显示 —— 这里补上 */
+  .newrec.hidden{display:none}
   .biomes{display:flex;gap:6px;justify-content:center;font-size:11px;color:#9b7aa4;font-weight:800;flex-wrap:wrap;max-width:330px}
 
   /* ---------- 头像 / 昵称 / 排行榜 ---------- */
@@ -188,7 +190,7 @@
     <div class="keys"><span class="kbd">← → 变道</span><span class="kbd">↑ / 空格 跳</span><span class="kbd">↓ 铲</span></div>
     <button class="btn" id="btnStart">开 始 奔 跑</button>
     <button class="btn ghost small" id="btnBoard">🏆 全球排行榜</button>
-    <div class="card" style="margin-top:2px"><div><span>最高分</span><b id="bestStart">0</b></div><div><span>最远距离</span><b id="bestDist">0 m</b></div><div><span>玩过的人</span><b id="playCount">–</b></div></div>
+    <div class="card" style="margin-top:2px"><div><span>最高分</span><b id="bestStart">0</b></div><div><span>最远距离</span><b id="bestDist">0 m</b></div></div>
     <div class="biomes">糖果公园 · 樱花小径 · 霓虹夜街 · 海边公路 · 云端幻境 · <span style="opacity:.6">v8</span></div>
   </div>
 
@@ -665,12 +667,13 @@
     ctx.beginPath(); ctx.ellipse(0, 0, w, h, 0, 0, 7); ctx.fill();
   }
 
+  // 锥筒：青绿色（原来是橙色，远看容易和金色星星混，改成对比色）
   function drawCone(){
     shadowEllipse(30, 9, .18);
-    ctx.fillStyle = '#f08a3c'; rr(ctx, -31, -11, 62, 12, 6); ctx.fill();
-    ctx.fillStyle = '#ffb85c'; rr(ctx, -31, -13, 62, 7, 4); ctx.fill();
+    ctx.fillStyle = '#178a76'; rr(ctx, -31, -11, 62, 12, 6); ctx.fill();
+    ctx.fillStyle = '#4fdcc4'; rr(ctx, -31, -13, 62, 7, 4); ctx.fill();
     const g = ctx.createLinearGradient(-26, 0, 26, 0);
-    g.addColorStop(0, '#ff9d3f'); g.addColorStop(.45, '#ffc06a'); g.addColorStop(1, '#f2862f');
+    g.addColorStop(0, '#1fb39a'); g.addColorStop(.45, '#63e7ce'); g.addColorStop(1, '#159a85');
     ctx.fillStyle = g;
     ctx.beginPath(); ctx.moveTo(0, -76); ctx.quadraticCurveTo(16, -40, 26, -9);
     ctx.lineTo(-26, -9); ctx.quadraticCurveTo(-16, -40, 0, -76); ctx.closePath(); ctx.fill();
@@ -1318,58 +1321,9 @@
   const NT = 'https://ntfy.sh/' + NT_TOPIC;
   const ARCHIVE_URL = 'board.json';
   const LB_API = 'https://api.restful-api.dev/objects/ff808181a09d98f701a14f5ae7b70c65';
-  const COUNTER_API = 'https://api.restful-api.dev/objects/ff808181a09d98f701a153454fbb1597';
   const LB_LEGACY_MAX = 12;
   const LB_MAX = 50;
   let lbCache = [];
-
-  /* ===== 玩过人数计数器 ===== */
-  // 读 → 显示；同一台设备每天只 +1 一次，避免刷新灌水
-  async function counterGet(){
-    const r = await fetch(COUNTER_API + '?t=' + Date.now(), { cache: 'no-store' });
-    if (!r.ok) throw new Error('HTTP ' + r.status);
-    const j = await r.json();
-    return Math.max(0, Number(j && j.data && j.data.n) || 0);
-  }
-  async function counterInc(){
-    const n = await counterGet();
-    const r = await fetch(COUNTER_API, {
-      method: 'PUT',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ name: 'cute-rush-counter', data: { n: n + 1, updated: Date.now() } })
-    });
-    if (!r.ok) throw new Error('PUT ' + r.status);
-    return n + 1;
-  }
-  function fmtNum(n){
-    return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-  }
-  function setPlayCount(n){
-    const el = document.getElementById('playCount');
-    if (el) el.textContent = n > 0 ? fmtNum(n) : '–';
-    try { localStorage.setItem('cr_count', String(n)); } catch(e){}
-  }
-  async function refreshPlayCount(){
-    // 先显示缓存，避免空白
-    try {
-      const cached = parseInt(localStorage.getItem('cr_count') || '0', 10);
-      if (cached > 0) setPlayCount(cached);
-    } catch(e){}
-    try {
-      let seen = '';
-      try { seen = localStorage.getItem('cr_seen') || ''; } catch(e){}
-      let n;
-      if (!seen){
-        n = await counterInc();
-        try { localStorage.setItem('cr_seen', '1'); } catch(e){}
-      } else {
-        n = await counterGet();
-      }
-      setPlayCount(n);
-    } catch(e){
-      // 网络失败就保持缓存值
-    }
-  }
 
   function safeAvatar(a){ return (typeof a === 'string' && a.indexOf('data:image/') === 0) ? a : ''; }
   function escapeHtml(s){
@@ -2193,7 +2147,6 @@
     updateBestLabels(); updateHearts(); updateBuffs();
     applyAvatar(myAvatar);
     setTimeout(flushPending, 1500);
-    setTimeout(refreshPlayCount, 300);
 
     const q = location.search;
     const shotParam = (q.match(/shot=(\w+)/) || [])[1] || '';
@@ -2240,7 +2193,7 @@
       say('稳稳的');
       updateScore(true);
       if (q.indexOf('zw=1') >= 0){ G.zw = ZW_TIME; G.zwFlash = 1.6; }
-      if (shotParam === 'over'){ G.dist = 806; G.stars = 23; G.best = 520; updateScore(true); gameOver(); }
+      if (shotParam === 'over'){ G.dist = 806; G.stars = 23; G.best = (q.indexOf('nb=1') >= 0 ? 99999 : 520); updateScore(true); gameOver(); }
     }
     if (q.indexOf('test=1') >= 0){
       const out = [];
