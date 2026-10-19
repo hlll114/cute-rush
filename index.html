@@ -331,6 +331,7 @@
     start:() => { tone(523, .1, 'triangle', .1); tone(659, .1, 'triangle', .1, null, .1); tone(784, .18, 'triangle', .11, null, .2); },
     over: () => { tone(520, .18, 'triangle', .12, 400); tone(392, .2, 'triangle', .12, 300, .16); tone(262, .5, 'triangle', .12, 180, .34); },
     level:() => { tone(784, .1, 'sine', .1); tone(1046, .14, 'sine', .1, null, .09); },
+    zw:() => { tone(300, .7, 'sine', .12, 60); tone(120, .9, 'triangle', .1, 45, .05); tone(900, .1, 'square', .05, 300, .02); },
     biome:() => { tone(880, .12, 'sine', .08); tone(1174, .14, 'sine', .08, null, .1); tone(1568, .2, 'sine', .08, null, .2); }
   };
 
@@ -339,7 +340,7 @@
     state: 'ready', t: 0, dist: 0, speed: 16, stars: 0, lives: 3, score: 0,
     combo: 0, comboT: 0, inv: 0, shake: 0, flash: 0, slow: 0,
     spawnT: 1.1, dyingT: 0, nextMilestone: 300, level: 1,
-    shield: false, magnet: 0, banner: null, biome: 0, best: 0, bestDist: 0,
+    shield: false, magnet: 0, zw: 0, zwFlash: 0, banner: null, biome: 0, best: 0, bestDist: 0,
     graceT: 0
   };
   try {
@@ -869,8 +870,9 @@
   function drawPower(kind, o){
     const y = -34 + Math.sin(o.t * 5) * 4;
     ctx.save(); ctx.translate(0, y);
-    ctx.shadowBlur = 18; ctx.shadowColor = kind === 'shield' ? 'rgba(120,200,255,.9)' : 'rgba(255,120,200,.9)';
-    ctx.fillStyle = kind === 'shield' ? '#7fc8ff' : '#ff8fd0';
+    const glow = kind === 'shield' ? 'rgba(120,200,255,.9)' : kind === 'slow' ? 'rgba(150,120,255,.95)' : 'rgba(255,120,200,.9)';
+    ctx.shadowBlur = 18; ctx.shadowColor = glow;
+    ctx.fillStyle = kind === 'shield' ? '#7fc8ff' : kind === 'slow' ? '#a98bff' : '#ff8fd0';
     ctx.beginPath(); ctx.arc(0, 0, 26, 0, 7); ctx.fill();
     ctx.shadowBlur = 0;
     ctx.strokeStyle = '#fff'; ctx.lineWidth = 3.5; ctx.stroke();
@@ -881,6 +883,17 @@
       ctx.quadraticCurveTo(12, 12, 0, 16);
       ctx.quadraticCurveTo(-12, 12, -12, 2); ctx.lineTo(-12, -8);
       ctx.closePath(); ctx.fill();
+    } else if (kind === 'slow'){
+      // 时停表：表盘 + 指针 + 顶部按钮
+      ctx.fillStyle = '#fff';
+      rr(ctx, -4, -19, 8, 5, 2); ctx.fill();
+      ctx.strokeStyle = '#fff'; ctx.lineWidth = 3.6;
+      ctx.beginPath(); ctx.arc(0, 1, 12, 0, 7); ctx.stroke();
+      ctx.lineWidth = 3; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(0, 1); ctx.lineTo(0, -6); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0, 1); ctx.lineTo(6, 4); ctx.stroke();
+      ctx.fillStyle = '#fff';
+      ctx.beginPath(); ctx.arc(0, 1, 2.2, 0, 7); ctx.fill();
     } else {
       // 马蹄磁铁：红色 U 形 + 白色两极
       const lw = 12, r = 13;
@@ -1063,7 +1076,7 @@
     G.t = 0; G.dist = 0; G.stars = 0; G.lives = 3; G.score = 0;
     G.speed = 16; G.combo = 0; G.comboT = 0; G.inv = 0;
     G.shake = 0; G.flash = 0; G.slow = 0; G.spawnT = 1.2; G.dyingT = 0;
-    G.nextMilestone = 300; G.level = 1; G.shield = false; G.magnet = 0;
+    G.nextMilestone = 300; G.level = 1; G.shield = false; G.magnet = 0; G.zw = 0; G.zwFlash = 0;
     G.banner = null; G.biome = 0; G.graceT = 2.2;
     P.x = 0; P.tx = 0; P.y = 0; P.vy = 0; P.air = false; P.slide = 0; P.lean = 0;
     P.crouch = 0; P.stretch = 1;
@@ -1586,8 +1599,17 @@
     const arr = [];
     if (G.shield) arr.push('<div class="buff">护盾 ON</div>');
     if (G.magnet > 0) arr.push('<div class="buff">磁铁 <span class="bar"><i style="width:' + Math.round(G.magnet / 9 * 100) + '%"></i></span></div>');
+    if (G.zw > 0) arr.push('<div class="buff" style="color:#7b61ff">⏱ 时停 <span class="bar"><i style="width:' + Math.round(G.zw / 2.6 * 100) + '%;background:#8b7bff"></i></span></div>');
     const html = arr.join('');
     if (html !== lastBuffs){ elBuffs.innerHTML = html; lastBuffs = html; }
+  }
+
+  // 道具权重：护盾 45% / 磁铁 33% / 时停 22%
+  function pickWeighted(){
+    const r = Math.random();
+    if (r < .45) return 'shield';
+    if (r < .78) return 'magnet';
+    return 'slow';
   }
 
   /* ================= 生成 ================= */
@@ -1612,7 +1634,7 @@
     }
     // 道具
     if (Math.random() < .11){
-      addObj(pick(['shield', 'magnet']), pick(lanes), z);
+      addObj(pickWeighted(), pick(lanes), z);
       if (Math.random() < .5) addObj(pick(['cone', 'cat']), pick(lanes), z + 14);
       return;
     }
@@ -1672,7 +1694,8 @@
   /* ================= 更新 ================= */
   function update(dt){
     if (G.state !== 'play'){ updateParticles(dt); return; }
-    const ts = G.slow > 0 ? .38 : 1;
+    let ts = G.slow > 0 ? .38 : 1;
+    if (G.zw > 0) ts *= .42;
     G.slow = Math.max(0, G.slow - dt);
     const wdt = dt * ts;
 
@@ -1693,7 +1716,7 @@
 
     // 玩家横向 + 跳跃 + 滑铲
     // 变道手感：更快贴合目标车道（约 0.12 秒到位），带一点回弹感
-    P.x += (P.tx - P.x) * Math.min(1, dt * 19);
+    P.x += (P.tx - P.x) * Math.min(1, dt * 27);
     if (P.air){
       P.vy -= GRAV * dt; P.y += P.vy * dt;
       const px0 = LW * .5 + P.x * LANE_U;
@@ -1734,10 +1757,12 @@
     if (G.graceT > 0) G.graceT = Math.max(0, G.graceT - dt);
     if (G.comboT > 0){ G.comboT -= dt; if (G.comboT <= 0) G.combo = 0; }
     if (G.magnet > 0) G.magnet = Math.max(0, G.magnet - dt);
+    if (G.zw > 0) G.zw = Math.max(0, G.zw - dt);
+    if (G.zwFlash > 0) G.zwFlash = Math.max(0, G.zwFlash - dt);
 
     // 生成
     const gap = 1.18 - d * .62;
-    G.spawnT -= dt;
+    G.spawnT -= wdt;
     if (G.spawnT <= 0){ spawnRow(); G.spawnT = gap * rnd(.82, 1.2); }
 
     // 里程碑
@@ -1781,7 +1806,7 @@
           if (dx < .8 && Math.abs((o.h || 0) - P.y) < 78) collectStar(o);
         } else if (o.kind === 'heart'){
           if (dx < .85) collectHeart(o);
-        } else if (o.kind === 'shield' || o.kind === 'magnet'){
+        } else if (o.kind === 'shield' || o.kind === 'magnet' || o.kind === 'slow'){
           if (dx < .85) collectPower(o);
         } else if (dx < .62 && G.graceT <= 0 && G.inv <= 0){
           if (o.kind === 'bar'){
@@ -1854,11 +1879,18 @@
     if (o.kind === 'shield'){
       G.shield = true; popText(sx, sy - 10, '护盾 GET!', '#7fc8ff');
       burst(sx, sy, '#7fc8ff', 14, 260, 70);
+    } else if (o.kind === 'slow'){
+      G.zw = 2.6; G.zwFlash = 1.4;
+      popText(sx, sy - 10, 'THE WORLD!', '#a98bff');
+      burst(sx, sy, '#a98bff', 20, 280, 80);
+      burst(sx, sy, '#ffffff', 10, 180, 40);
+      sfx.zw();
     } else {
       G.magnet = 9; popText(sx, sy - 10, '磁铁 9s', '#ff8fd0');
       burst(sx, sy, '#ff8fd0', 14, 260, 70);
     }
-    sfx.power(); say(o.kind === 'shield' ? '有护盾啦！' : '吸星星～');
+    if (o.kind !== 'slow') sfx.power();
+    say(o.kind === 'shield' ? '有护盾啦！' : o.kind === 'slow' ? '时间停止！' : '吸星星～');
     updateBuffs();
   }
   function hopOver(o){
@@ -1965,7 +1997,7 @@
       else if (o.kind === 'wall') drawWall();
       else if (o.kind === 'star') drawStar(o);
       else if (o.kind === 'heart') drawHeartItem(o);
-      else if (o.kind === 'shield' || o.kind === 'magnet') drawPower(o.kind, o);
+      else if (o.kind === 'shield' || o.kind === 'magnet' || o.kind === 'slow') drawPower(o.kind, o);
       ctx.restore();
     }
 
@@ -2060,6 +2092,32 @@
 
     ctx.restore();
 
+    // 时停滤镜
+    if (G.zw > 0){
+      ctx.save();
+      ctx.fillStyle = 'rgba(126,96,230,.20)';
+      ctx.fillRect(0, 0, LW, LH);
+      const vg = ctx.createRadialGradient(LW / 2, LH / 2, LH * 0.22, LW / 2, LH / 2, LH * 0.72);
+      vg.addColorStop(0, 'rgba(70,40,150,0)');
+      vg.addColorStop(1, 'rgba(62,32,140,.42)');
+      ctx.fillStyle = vg;
+      ctx.fillRect(0, 0, LW, LH);
+      ctx.restore();
+    }
+    if (G.zwFlash > 0){
+      const a = clamp(G.zwFlash / 1.4, 0, 1);
+      ctx.save();
+      ctx.globalAlpha = a;
+      ctx.font = '900 56px "Microsoft YaHei",system-ui,sans-serif';
+      ctx.textAlign = 'center';
+      ctx.lineWidth = 10; ctx.strokeStyle = 'rgba(255,255,255,.92)';
+      ctx.strokeText('THE WORLD', LW / 2, LH * 0.3);
+      ctx.fillStyle = '#7b61ff';
+      ctx.fillText('THE WORLD', LW / 2, LH * 0.3);
+      ctx.restore();
+      ctx.textAlign = 'left';
+    }
+
     if (G.flash > 0){
       ctx.fillStyle = 'rgba(255,120,170,' + (G.flash * .5) + ')';
       ctx.fillRect(0, 0, LW, LH);
@@ -2124,12 +2182,13 @@
       const stq = (q.match(/state=(\w+)/) || [])[1] || '';
       if (stq === 'jump'){ P.air = true; P.vy = 40; P.y = 150; }
       else if (stq === 'slide'){ P.slide = .42; P.crouch = 1; }
-      const spread = [[-1, 12, 'wall'], [0, 12, 'hurdle'], [1, 12, 'bar'], [-1, 26, 'cone'], [1, 26, 'cat'], [0, 6, 'crate']];
+      const spread = [[-1, 12, 'wall'], [0, 12, 'hurdle'], [1, 12, 'bar'], [-1, 26, 'cone'], [1, 26, 'cat'], [0, 7, 'slow']];
       for (const [l, z, k] of spread) addObj(k, l, z);
       addObj('star', 0, 16); addObj('star', 0, 11); addObj('shield', 1, 4); addObj('magnet', -1, 8);
       addObj('train', 1, 20, { len: 16, long: true });
       say('稳稳的');
       updateScore(true);
+      if (q.indexOf('zw=1') >= 0){ G.zw = 2.6; G.zwFlash = 1.4; }
       if (shotParam === 'over'){ G.dist = 806; G.stars = 23; G.best = 520; updateScore(true); gameOver(); }
     }
     if (q.indexOf('test=1') >= 0){
@@ -2160,6 +2219,18 @@
       G.magnet = 9;
       for (let i = 0; i < 180; i++) update(1 / 60);
       out.push('magnet:' + (G.stars >= 8 ? 'PASS' : 'FAIL(stars=' + G.stars + ')'));
+      // 时停：世界推进速度应显著变慢
+      reset(); G.state = 'play'; G.graceT = 0; G.spawnT = 999; G.inv = 0;
+      objs = []; addObj('cone', -1, 40);
+      let za = objs[0].z;
+      for (let i = 0; i < 30; i++) update(1 / 60);
+      const dzN = za - objs[0].z;
+      reset(); G.state = 'play'; G.graceT = 0; G.spawnT = 999; G.inv = 0;
+      objs = []; addObj('cone', -1, 40); G.zw = 5;
+      let zb = objs[0].z;
+      for (let i = 0; i < 30; i++) update(1 / 60);
+      const dzS = zb - objs[0].z;
+      out.push('zw:' + (dzS < dzN * 0.6 ? 'PASS' : 'FAIL(' + dzS.toFixed(2) + '/' + dzN.toFixed(2) + ')'));
       window.__dbg.textContent = out.join('  ');
       reset(); G.state = 'ready';
     }
