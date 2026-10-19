@@ -152,19 +152,7 @@
     color:#fff;font-size:13px;font-weight:800;padding:9px 18px;border-radius:999px;z-index:20;
     opacity:0;transition:opacity .25s;pointer-events:none;white-space:nowrap;max-width:90%}
 
-  /* ---------- pads ---------- */
-  #pads{position:absolute;inset:auto 0 0 0;display:flex;justify-content:space-between;align-items:flex-end;
-    padding:0 14px 18px;z-index:4;pointer-events:none}
-  .pgroup{display:flex;gap:10px;align-items:flex-end}
-  .pad{pointer-events:auto;width:62px;height:62px;border-radius:50%;border:0;cursor:pointer;
-    background:rgba(255,255,255,.55);color:#fff;font-size:22px;font-weight:900;
-    box-shadow:0 6px 16px rgba(140,80,120,.22),inset 0 0 0 3px rgba(255,255,255,.85);
-    text-shadow:0 2px 4px rgba(200,80,140,.35);transition:transform .09s,background .15s;
-    -webkit-text-stroke:0;display:grid;place-items:center}
-  .pad.big{width:80px;height:80px;font-size:26px}
-  .pad.sm{width:56px;height:56px;font-size:18px}
-  .pad:active,.pad.hit{transform:scale(.9);background:rgba(255,255,255,.85)}
-  @media (hover:hover){ .pad{opacity:.55} #app:hover .pad{opacity:.92} }
+  /* ---------- 手势提示（不再有屏幕按键，只能滑动） ---------- */
 </style>
 </head>
 <body>
@@ -187,16 +175,6 @@
     </div>
   </div>
 
-  <div id="pads">
-    <div class="pgroup">
-      <button class="pad" id="padL">◀</button>
-      <button class="pad" id="padR">▶</button>
-    </div>
-    <div class="pgroup">
-      <button class="pad sm" id="padSlide">▼</button>
-      <button class="pad big" id="padJump">▲</button>
-    </div>
-  </div>
   <input type="file" id="fileAvatar" accept="image/*" style="display:none">
 
   <div class="screen" id="scrStart">
@@ -206,7 +184,7 @@
     </div>
     <h1>可爱冲刺<small>CUTE RUSH · 跑酷版</small></h1>
     <div class="nameRow"><span>昵称</span><input id="nameInput" maxlength="10" placeholder="取个名字上榜"></div>
-    <p class="tip">变道躲障碍 · <b>▲ 跳</b>过矮栏杆 · <b>▼ 滑</b>过横杆<br>⭐加分 · ❤回血 · 护盾挡一次撞击 · 磁铁吸星星</p>
+    <p class="tip"><b>手指滑动操作</b>：左右滑变道 · 上滑跳 · 下滑铲<br>电脑：← → 变道 · ↑ / 空格 跳 · ↓ 铲<br>⭐加分 · ❤回血 · 护盾挡一次撞击 · 磁铁吸星星</p>
     <div class="keys"><span class="kbd">← →</span><span class="kbd">空格 跳</span><span class="kbd">↓ 滑</span><span class="kbd">手机滑动</span></div>
     <button class="btn" id="btnStart">开 始 奔 跑</button>
     <button class="btn ghost small" id="btnBoard">🏆 全球排行榜</button>
@@ -1138,7 +1116,7 @@
     }
   }, { passive: false });
 
-  /* 手势：一次滑动只触发一次动作（变道一条 / 跳 / 滑），避免长划跨两条道 */
+  /* 手势：只支持滑动 —— 一次滑动只触发一次动作（变道一条 / 跳 / 滑） */
   let ptr = null;
   const SWIPE_X = 22, SWIPE_Y = 26;
 
@@ -1159,30 +1137,10 @@
       ptr.done = true;
     }
   });
-  app.addEventListener('pointerup', e => {
-    if (!ptr) return;
-    if (!ptr.done && G.state === 'play' && Date.now() - ptr.t0 < 400){
-      const r = app.getBoundingClientRect();
-      const rx = (e.clientX - r.left) / r.width, ry = (e.clientY - r.top) / r.height;
-      if (ry > .68 && rx > .5) doJump();
-      else if (rx < .5) move(-1);
-      else move(1);
-    }
-    ptr = null;
-  });
+  // 点按不再触发任何动作，只清理手势状态
+  app.addEventListener('pointerup', () => { ptr = null; });
   app.addEventListener('pointercancel', () => { ptr = null; });
   app.addEventListener('pointerleave', () => { ptr = null; });
-
-  const bindPad = (id, fn) => {
-    const el = document.getElementById(id);
-    el.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); el.classList.add('hit'); fn(); });
-    el.addEventListener('pointerup', () => el.classList.remove('hit'));
-    el.addEventListener('pointerleave', () => el.classList.remove('hit'));
-  };
-  bindPad('padL', () => move(-1));
-  bindPad('padR', () => move(1));
-  bindPad('padJump', doJump);
-  bindPad('padSlide', doSlide);
 
   function togglePause(){
     if (G.state === 'play'){ G.state = 'pause'; show('scrPause'); }
