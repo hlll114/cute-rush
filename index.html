@@ -709,20 +709,35 @@
     face(ctx, -6, -46, 1, 'happy');
   }
 
-  // 需要跳过去的高障碍（钻不过去，但跳得过去 → 这里做成"矮栏杆"，其实要跳）
+  // 需要跳过去的实心矮墩（钻不过去、滑也滑不过，只能跳）
   function drawHurdle(){
-    shadowEllipse(44, 10, .18);
-    ctx.fillStyle = '#8b6bd8';
-    rr(ctx, -44, -40, 9, 42, 4); ctx.fill();
-    rr(ctx, 35, -40, 9, 42, 4); ctx.fill();
-    const g = ctx.createLinearGradient(0, -58, 0, -32);
-    g.addColorStop(0, '#c9a8ff'); g.addColorStop(1, '#9b74ee');
-    ctx.fillStyle = g; rr(ctx, -52, -58, 104, 18, 9); ctx.fill();
+    shadowEllipse(50, 11, .20);
+    const W2 = 54, H2 = 56;
+    // 顶面
+    ctx.fillStyle = '#9aa6c4';
+    rr(ctx, -W2, -H2 - 10, W2 * 2, 18, 8); ctx.fill();
+    // 正面（实心块）
+    const g = ctx.createLinearGradient(0, -H2, 0, 4);
+    g.addColorStop(0, '#8792b3'); g.addColorStop(1, '#5d688a');
+    ctx.fillStyle = g;
+    rr(ctx, -W2, -H2, W2 * 2, H2 + 4, 10); ctx.fill();
+    // 白色警示斜纹
+    ctx.save();
+    rr(ctx, -W2, -H2, W2 * 2, H2 + 4, 10); ctx.clip();
     ctx.fillStyle = 'rgba(255,255,255,.85)';
-    for (let i = -44; i < 44; i += 22) rr(ctx, i, -56, 10, 14, 4), ctx.fill();
-    // 提示：向上跳
+    for (let i = -90; i < 90; i += 26){
+      ctx.beginPath();
+      ctx.moveTo(i, 4); ctx.lineTo(i + 10, 4);
+      ctx.lineTo(i + 26 + 10, -H2); ctx.lineTo(i + 26, -H2);
+      ctx.closePath(); ctx.fill();
+    }
+    ctx.restore();
+    ctx.strokeStyle = 'rgba(255,255,255,.85)'; ctx.lineWidth = 4;
+    rr(ctx, -W2, -H2, W2 * 2, H2 + 4, 10); ctx.stroke();
+    face(ctx, 0, -20, 1.05, 'happy');
+    // 提示：向上跳（浮在方块上方）
     ctx.fillStyle = 'rgba(255,255,255,.95)';
-    ctx.beginPath(); ctx.moveTo(0, -78); ctx.lineTo(-13, -96); ctx.lineTo(13, -96); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(0, -H2 - 22); ctx.lineTo(-13, -H2 - 40); ctx.lineTo(13, -H2 - 40); ctx.closePath(); ctx.fill();
   }
 
   // 需要滑铲钻过的横杆
@@ -855,12 +870,23 @@
       ctx.quadraticCurveTo(-12, 12, -12, 2); ctx.lineTo(-12, -8);
       ctx.closePath(); ctx.fill();
     } else {
-      ctx.save(); ctx.rotate(.5);
-      ctx.beginPath(); ctx.rect(-13, -6, 26, 8); ctx.fill();
-      ctx.beginPath(); ctx.rect(-6, -13, 8, 26); ctx.fill();
-      ctx.restore();
-      ctx.fillStyle = '#7fc8ff';
-      ctx.beginPath(); ctx.arc(-8, 8, 5, 0, 7); ctx.fill();
+      // 马蹄磁铁：红色 U 形 + 白色两极
+      const lw = 12, r = 13;
+      ctx.lineCap = 'butt';
+      ctx.strokeStyle = '#ff5f6d'; ctx.lineWidth = lw;
+      ctx.beginPath();
+      ctx.arc(0, -2, r, Math.PI, 0);
+      ctx.moveTo(-r, -2); ctx.lineTo(-r, 13);
+      ctx.moveTo(r, -2); ctx.lineTo(r, 13);
+      ctx.stroke();
+      ctx.strokeStyle = '#eef4ff'; ctx.lineWidth = lw;
+      ctx.beginPath();
+      ctx.moveTo(-r, 9); ctx.lineTo(-r, 14);
+      ctx.moveTo(r, 9); ctx.lineTo(r, 14);
+      ctx.stroke();
+      // 一点高光，显得是金属件
+      ctx.strokeStyle = 'rgba(255,255,255,.55)'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(0, -2, r - 2, Math.PI * 1.08, Math.PI * 1.5); ctx.stroke();
     }
     ctx.restore();
   }
@@ -1713,10 +1739,24 @@
 
     // 物体推进
     for (const o of objs){
-      const zPrev = o.z;
-      o.z -= (G.speed + (o.long ? 8 : 0)) * wdt;
       o.t += wdt;
       if (o.dead) continue;
+
+      // 磁铁：范围内的星星被"吸"向玩家（有飞行过程，不是瞬间消失）
+      if (o.kind === 'star' && G.magnet > 0 &&
+          (o.pull || (o.z < 24 && o.z > 1 && Math.abs(o.off - P.x) < 2.6))){
+        o.pull = true;
+        const kz = Math.min(1, wdt * 5.2), ko = Math.min(1, wdt * 9);
+        o.z += (1.05 - o.z) * kz;
+        o.off += (P.x - o.off) * ko;
+        o.h = (o.h || 0) + (P.y - (o.h || 0)) * ko;
+        if (o.z < 2.8 && Math.abs(o.off - P.x) < .5) collectStar(o);
+        if (o.dead) continue;
+        continue;
+      }
+
+      const zPrev = o.z;
+      o.z -= (G.speed + (o.long ? 8 : 0)) * wdt;
 
       if (o.long){
         // 火车：整段覆盖判定
@@ -1726,7 +1766,7 @@
       } else if (zPrev > HIT_Z && o.z <= HIT_Z){
         const dx = Math.abs(o.off - P.x);
         if (o.kind === 'star'){
-          if ((dx < .8 || G.magnet > 0) && Math.abs((o.h || 0) - P.y) < 78) collectStar(o);
+          if (dx < .8 && Math.abs((o.h || 0) - P.y) < 78) collectStar(o);
         } else if (o.kind === 'heart'){
           if (dx < .85) collectHeart(o);
         } else if (o.kind === 'shield' || o.kind === 'magnet'){
@@ -1744,15 +1784,6 @@
       if (o.z < -4 || (o.long && o.z + o.len < -4)) o.dead = true;
     }
     objs = objs.filter(o => !o.dead);
-
-    // 磁铁：吸附附近星星
-    if (G.magnet > 0){
-      for (const o of objs){
-        if (o.kind === 'star' && !o.dead && o.z < 14 && Math.abs(o.off - P.x) < 1.6 && Math.abs((o.h || 0) - P.y) < 90){
-          collectStar(o);
-        }
-      }
-    }
 
     // 尾迹 + 环境粒子
     if (Math.random() < .5){
@@ -2083,7 +2114,7 @@
       else if (stq === 'slide'){ P.slide = .42; P.crouch = 1; }
       const spread = [[-1, 14, 'cone'], [0, 20, 'hurdle'], [1, 27, 'bar'], [-1, 32, 'wall'], [-1, 6, 'crate'], [1, 9, 'cat']];
       for (const [l, z, k] of spread) addObj(k, l, z);
-      addObj('star', 0, 16); addObj('star', 0, 11); addObj('shield', 1, 4);
+      addObj('star', 0, 16); addObj('star', 0, 11); addObj('shield', 1, 4); addObj('magnet', -1, 8);
       addObj('train', 1, 20, { len: 16, long: true });
       say('稳稳的');
       updateScore(true);
@@ -2110,6 +2141,13 @@
       objs = []; addObj('hurdle', 0, 6);
       for (let i = 0; i < 150; i++) update(1 / 60);
       out.push('noinput:' + (G.lives === 2 ? 'PASS' : 'FAIL(lives=' + G.lives + ')'));
+      // 磁铁：三条道的星星都应该被吸过来
+      reset(); G.state = 'play'; G.graceT = 0; G.spawnT = 999; G.inv = 0;
+      objs = [];
+      for (const l of [-1, 0, 1]) for (let k = 0; k < 3; k++) addObj('star', l, 8 + k * 4);
+      G.magnet = 9;
+      for (let i = 0; i < 180; i++) update(1 / 60);
+      out.push('magnet:' + (G.stars >= 8 ? 'PASS' : 'FAIL(stars=' + G.stars + ')'));
       window.__dbg.textContent = out.join('  ');
       reset(); G.state = 'ready';
     }
