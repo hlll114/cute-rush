@@ -188,8 +188,8 @@
     <div class="keys"><span class="kbd">← → 变道</span><span class="kbd">↑ / 空格 跳</span><span class="kbd">↓ 铲</span></div>
     <button class="btn" id="btnStart">开 始 奔 跑</button>
     <button class="btn ghost small" id="btnBoard">🏆 全球排行榜</button>
-    <div class="card" style="margin-top:2px"><div><span>最高分</span><b id="bestStart">0</b></div><div><span>最远距离</span><b id="bestDist">0 m</b></div></div>
-    <div class="biomes">糖果公园 · 樱花小径 · 霓虹夜街 · 海边公路 · 云端幻境 · <span style="opacity:.6">v7</span></div>
+    <div class="card" style="margin-top:2px"><div><span>最高分</span><b id="bestStart">0</b></div><div><span>最远距离</span><b id="bestDist">0 m</b></div><div><span>玩过的人</span><b id="playCount">–</b></div></div>
+    <div class="biomes">糖果公园 · 樱花小径 · 霓虹夜街 · 海边公路 · 云端幻境 · <span style="opacity:.6">v8</span></div>
   </div>
 
   <div class="screen hidden" id="scrBoard">
@@ -1318,9 +1318,58 @@
   const NT = 'https://ntfy.sh/' + NT_TOPIC;
   const ARCHIVE_URL = 'board.json';
   const LB_API = 'https://api.restful-api.dev/objects/ff808181a09d98f701a14f5ae7b70c65';
+  const COUNTER_API = 'https://api.restful-api.dev/objects/ff808181a09d98f701a153454fbb1597';
   const LB_LEGACY_MAX = 12;
   const LB_MAX = 50;
   let lbCache = [];
+
+  /* ===== 玩过人数计数器 ===== */
+  // 读 → 显示；同一台设备每天只 +1 一次，避免刷新灌水
+  async function counterGet(){
+    const r = await fetch(COUNTER_API + '?t=' + Date.now(), { cache: 'no-store' });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const j = await r.json();
+    return Math.max(0, Number(j && j.data && j.data.n) || 0);
+  }
+  async function counterInc(){
+    const n = await counterGet();
+    const r = await fetch(COUNTER_API, {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ name: 'cute-rush-counter', data: { n: n + 1, updated: Date.now() } })
+    });
+    if (!r.ok) throw new Error('PUT ' + r.status);
+    return n + 1;
+  }
+  function fmtNum(n){
+    return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  }
+  function setPlayCount(n){
+    const el = document.getElementById('playCount');
+    if (el) el.textContent = n > 0 ? fmtNum(n) : '–';
+    try { localStorage.setItem('cr_count', String(n)); } catch(e){}
+  }
+  async function refreshPlayCount(){
+    // 先显示缓存，避免空白
+    try {
+      const cached = parseInt(localStorage.getItem('cr_count') || '0', 10);
+      if (cached > 0) setPlayCount(cached);
+    } catch(e){}
+    try {
+      let seen = '';
+      try { seen = localStorage.getItem('cr_seen') || ''; } catch(e){}
+      let n;
+      if (!seen){
+        n = await counterInc();
+        try { localStorage.setItem('cr_seen', '1'); } catch(e){}
+      } else {
+        n = await counterGet();
+      }
+      setPlayCount(n);
+    } catch(e){
+      // 网络失败就保持缓存值
+    }
+  }
 
   function safeAvatar(a){ return (typeof a === 'string' && a.indexOf('data:image/') === 0) ? a : ''; }
   function escapeHtml(s){
@@ -2144,6 +2193,7 @@
     updateBestLabels(); updateHearts(); updateBuffs();
     applyAvatar(myAvatar);
     setTimeout(flushPending, 1500);
+    setTimeout(refreshPlayCount, 300);
 
     const q = location.search;
     const shotParam = (q.match(/shot=(\w+)/) || [])[1] || '';
