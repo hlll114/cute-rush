@@ -358,7 +358,7 @@
 
   /* ================= 状态 ================= */
   const G = {
-    state: 'ready', t: 0, dist: 0, speed: 16, stars: 0, lives: 2, score: 0,
+    state: 'ready', t: 0, dist: 0, speed: 16, stars: 0, lives: 3, score: 0,
     combo: 0, comboT: 0, inv: 0, shake: 0, flash: 0, slow: 0,
     spawnT: 1.1, dyingT: 0, nextMilestone: 300, level: 1,
     shield: false, magnet: 0, banner: null, biome: 0, best: 0, bestDist: 0,
@@ -778,13 +778,14 @@
     face(ctx, 0, -50, 1.5, 'wow');
   }
 
-  // 小火车（横跨整条车道，只能变道）
+  // 小火车（占一条车道，只能变道躲开）
+  const TRAIN_W = .42, TRAIN_H = 138;
   function drawTrain(o){
     const sF = proj(o.z), sB = proj(o.z + o.len);
     const xF = xOf(o.off, o.z), xB = xOf(o.off, o.z + o.len);
     const yF = yOf(o.z), yB = yOf(o.z + o.len);
-    const wF = .78 * LANE_U * sF, wB = .78 * LANE_U * sB;
-    const hF = 152 * sF, hB = 152 * sB;
+    const wF = TRAIN_W * LANE_U * sF, wB = TRAIN_W * LANE_U * sB;
+    const hF = TRAIN_H * sF, hB = TRAIN_H * sB;
 
     // 侧面
     ctx.fillStyle = '#e879a8';
@@ -804,7 +805,10 @@
     ctx.strokeStyle = 'rgba(255,255,255,.45)'; ctx.lineWidth = 2 * sF;
     for (let k = 0.25; k < 1; k += 0.25){
       const zz = o.z + o.len * k, ss = proj(zz), xx = xOf(o.off, zz), yy = yOf(zz);
-      ctx.beginPath(); ctx.moveTo(xx - .78 * LANE_U * ss, yy - 152 * ss); ctx.lineTo(xx + .78 * LANE_U * ss, yy - 152 * ss); ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(xx - TRAIN_W * LANE_U * ss, yy - TRAIN_H * ss);
+      ctx.lineTo(xx + TRAIN_W * LANE_U * ss, yy - TRAIN_H * ss);
+      ctx.stroke();
     }
     // 车头
     const g = ctx.createLinearGradient(0, yF - hF, 0, yF);
@@ -818,9 +822,9 @@
     rr(ctx, xF - wF * .72, yF - hF * .92, wF * 1.44, hF * .34, 8 * sF); ctx.fill();
     // 车灯 + 脸
     ctx.fillStyle = '#fff6c8';
-    ctx.beginPath(); ctx.arc(xF - wF * .6, yF - hF * .44, 7 * sF, 0, 7); ctx.fill();
-    ctx.beginPath(); ctx.arc(xF + wF * .6, yF - hF * .44, 7 * sF, 0, 7); ctx.fill();
-    face(ctx, xF, yF - hF * .55, 1.1 * sF, 'wow');
+    ctx.beginPath(); ctx.arc(xF - wF * .58, yF - hF * .46, 6 * sF, 0, 7); ctx.fill();
+    ctx.beginPath(); ctx.arc(xF + wF * .58, yF - hF * .46, 6 * sF, 0, 7); ctx.fill();
+    face(ctx, xF, yF - hF * .56, .95 * sF, 'wow');
   }
 
   function drawStar(o){
@@ -1040,7 +1044,7 @@
   /* ================= 游戏流程 ================= */
   function reset(){
     objs = []; parts = []; pops = []; ambient = []; bubble = null;
-    G.t = 0; G.dist = 0; G.stars = 0; G.lives = 2; G.score = 0;
+    G.t = 0; G.dist = 0; G.stars = 0; G.lives = 3; G.score = 0;
     G.speed = 16; G.combo = 0; G.comboT = 0; G.inv = 0;
     G.shake = 0; G.flash = 0; G.slow = 0; G.spawnT = 1.2; G.dyingT = 0;
     G.nextMilestone = 300; G.level = 1; G.shield = false; G.magnet = 0;
@@ -1097,6 +1101,7 @@
     if (nx === P.tx) return;
     P.tx = nx;
     tone(500 + (dir > 0 ? 70 : -70), .06, 'sine', .05);
+    try { if (navigator.vibrate) navigator.vibrate(8); } catch(e){}
   }
   function doJump(){
     if (G.state !== 'play') return;
@@ -1133,32 +1138,40 @@
     }
   }, { passive: false });
 
+  /* 手势：一次滑动只触发一次动作（变道一条 / 跳 / 滑），避免长划跨两条道 */
   let ptr = null;
+  const SWIPE_X = 22, SWIPE_Y = 26;
+
   app.addEventListener('pointerdown', e => {
     if (e.target.closest('button')) return;
-    ptr = { x: e.clientX, y: e.clientY, moved: false };
+    ptr = { x0: e.clientX, y0: e.clientY, t0: Date.now(), done: false };
   });
   app.addEventListener('pointermove', e => {
-    if (!ptr || G.state !== 'play') return;
-    const dx = e.clientX - ptr.x, dy = e.clientY - ptr.y;
-    if (Math.abs(dx) > 26 && Math.abs(dx) > Math.abs(dy)){
-      move(dx > 0 ? 1 : -1); ptr.x = e.clientX; ptr.moved = true;
-    } else if (Math.abs(dy) > 30 && Math.abs(dy) > Math.abs(dx)){
+    if (!ptr || ptr.done || G.state !== 'play') return;
+    const dx = e.clientX - ptr.x0, dy = e.clientY - ptr.y0;
+    const ax = Math.abs(dx), ay = Math.abs(dy);
+    if (ax < SWIPE_X && ay < SWIPE_Y) return;
+    if (ax > ay * 1.15){
+      move(dx > 0 ? 1 : -1);
+      ptr.done = true;
+    } else if (ay > ax * 1.15){
       if (dy < 0) doJump(); else doSlide();
-      ptr.y = e.clientY; ptr.moved = true;
+      ptr.done = true;
     }
   });
   app.addEventListener('pointerup', e => {
     if (!ptr) return;
-    if (!ptr.moved && G.state === 'play'){
+    if (!ptr.done && G.state === 'play' && Date.now() - ptr.t0 < 400){
       const r = app.getBoundingClientRect();
       const rx = (e.clientX - r.left) / r.width, ry = (e.clientY - r.top) / r.height;
-      if (ry > .62 && rx > .55) doJump();
-      else if (rx < .5) move(-1); else move(1);
+      if (ry > .68 && rx > .5) doJump();
+      else if (rx < .5) move(-1);
+      else move(1);
     }
     ptr = null;
   });
   app.addEventListener('pointercancel', () => { ptr = null; });
+  app.addEventListener('pointerleave', () => { ptr = null; });
 
   const bindPad = (id, fn) => {
     const el = document.getElementById(id);
@@ -1560,7 +1573,7 @@
   const elBuffs = document.getElementById('buffs');
   function updateHearts(pulse){
     let s = '';
-    for (let i = 0; i < 2; i++) s += '<span class="h' + (i < G.lives ? '' : ' off') + '">❤</span>';
+    for (let i = 0; i < 3; i++) s += '<span class="h' + (i < G.lives ? '' : ' off') + '">❤</span>';
     elLives.innerHTML = s;
     if (pulse){ elLives.classList.remove('pulse'); void elLives.offsetWidth; elLives.classList.add('pulse'); }
   }
@@ -1596,7 +1609,7 @@
     const r = Math.random();
 
     // 爱心：稀有小概率
-    if (G.lives < 2 && G.dist > 200 && Math.random() < .10){
+    if (G.lives < 3 && G.dist > 200 && Math.random() < .10){
       addObj('heart', pick(lanes), z);
       addObj(pick(['cone', 'crate', 'cat']), pick(lanes.filter(v => v !== 0)), z + 12);
       return;
@@ -1683,7 +1696,8 @@
     }
 
     // 玩家横向 + 跳跃 + 滑铲
-    P.x += (P.tx - P.x) * Math.min(1, dt * 14);
+    // 变道手感：更快贴合目标车道（约 0.12 秒到位），带一点回弹感
+    P.x += (P.tx - P.x) * Math.min(1, dt * 19);
     if (P.air){
       P.vy -= GRAV * dt; P.y += P.vy * dt;
       const px0 = LW * .5 + P.x * LANE_U;
@@ -1748,7 +1762,7 @@
 
       if (o.long){
         // 火车：整段覆盖判定
-        if (o.z <= HIT_Z + 1.2 && o.z + o.len > HIT_Z - 1.2 && Math.abs(o.off - P.x) < .62 && G.graceT <= 0 && G.inv <= 0){
+        if (o.z <= HIT_Z + 1.2 && o.z + o.len > HIT_Z - 1.2 && Math.abs(o.off - P.x) < .55 && G.graceT <= 0 && G.inv <= 0){
           crash(o);
         }
       } else if (zPrev > HIT_Z && o.z <= HIT_Z){
@@ -1826,7 +1840,7 @@
   }
   function collectHeart(o){
     o.dead = true;
-    G.lives = Math.min(2, G.lives + 1);
+    G.lives = Math.min(3, G.lives + 1);
     updateHearts(true);
     const sx = xOf(o.off, o.z), sy = yOf(o.z) - 34 * proj(o.z);
     burst(sx, sy, '#ff6aa8', 14, 260, 70);
@@ -2112,6 +2126,7 @@
       const spread = [[-1, 14, 'cone'], [0, 20, 'hurdle'], [1, 27, 'bar'], [-1, 32, 'wall'], [-1, 6, 'crate'], [1, 9, 'cat']];
       for (const [l, z, k] of spread) addObj(k, l, z);
       addObj('star', 0, 16); addObj('star', 0, 11); addObj('shield', 1, 4);
+      addObj('train', 1, 20, { len: 16, long: true });
       say('稳稳的');
       updateScore(true);
       if (shotParam === 'over'){ G.dist = 806; G.stars = 23; G.best = 520; updateScore(true); gameOver(); }
@@ -2127,7 +2142,7 @@
           update(1 / 60);
           if (G.state !== 'play') break;
         }
-        out.push(label + ':' + (G.lives === 2 ? 'PASS' : 'FAIL(lives=' + G.lives + ')'));
+        out.push(label + ':' + (G.lives === 3 ? 'PASS' : 'FAIL(lives=' + G.lives + ')'));
       };
       runCase('hurdle', () => doJump(), 'jump-hurdle');
       runCase('bar', () => doSlide(), 'slide-bar');
@@ -2136,7 +2151,7 @@
       reset(); G.state = 'play'; G.graceT = 0; G.spawnT = 999; G.inv = 0;
       objs = []; addObj('hurdle', 0, 6);
       for (let i = 0; i < 150; i++) update(1 / 60);
-      out.push('noinput:' + (G.lives === 1 ? 'PASS' : 'FAIL(lives=' + G.lives + ')'));
+      out.push('noinput:' + (G.lives === 2 ? 'PASS' : 'FAIL(lives=' + G.lives + ')'));
       window.__dbg.textContent = out.join('  ');
       reset(); G.state = 'ready';
     }
@@ -2144,7 +2159,7 @@
       const log = [];
       try {
         for (let i = 0; i < 9000; i++){
-          if (G.state === 'dying'){ G.dyingT = 0; gameOver(); G.state = 'play'; G.lives = 2; }
+          if (G.state === 'dying'){ G.dyingT = 0; gameOver(); G.state = 'play'; G.lives = 3; }
           update(1 / 60);
           if (i % 40 === 0) move(Math.random() < .5 ? -1 : 1);
           if (i % 33 === 0) (Math.random() < .5 ? doJump : doSlide)();
