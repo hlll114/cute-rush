@@ -755,24 +755,36 @@
     ctx.beginPath(); ctx.moveTo(0, -138); ctx.lineTo(-13, -154); ctx.lineTo(13, -154); ctx.closePath(); ctx.fill();
   }
 
-  // 完全挡路（只能变道）
+  // 完全挡路（只能变道）—— 做得又高又大，一眼就知道跳不过去
+  const WALL_W = 58, WALL_H = 152;
   function drawWall(){
-    shadowEllipse(58, 11, .18);
-    const g = ctx.createLinearGradient(0, -96, 0, 0);
+    shadowEllipse(WALL_W + 6, 12, .20);
+    const g = ctx.createLinearGradient(0, -WALL_H, 0, 0);
     g.addColorStop(0, '#ff9dc4'); g.addColorStop(1, '#ff5f9b');
-    ctx.fillStyle = g; rr(ctx, -52, -96, 104, 96, 14); ctx.fill();
-    ctx.save(); rr(ctx, -52, -96, 104, 96, 14); ctx.clip();
+    ctx.fillStyle = g; rr(ctx, -WALL_W, -WALL_H, WALL_W * 2, WALL_H, 16); ctx.fill();
+    ctx.save(); rr(ctx, -WALL_W, -WALL_H, WALL_W * 2, WALL_H, 16); ctx.clip();
     ctx.fillStyle = 'rgba(255,255,255,.85)';
-    for (let i = -100; i < 100; i += 30){
-      ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i + 14, 0); ctx.lineTo(i + 40, -96); ctx.lineTo(i + 26, -96); ctx.closePath(); ctx.fill();
+    for (let i = -WALL_W * 2; i < WALL_W * 2; i += 34){
+      ctx.beginPath();
+      ctx.moveTo(i, 0); ctx.lineTo(i + 14, 0);
+      ctx.lineTo(i + 14 + 44, -WALL_H); ctx.lineTo(i + 44, -WALL_H);
+      ctx.closePath(); ctx.fill();
     }
     ctx.restore();
-    ctx.strokeStyle = 'rgba(255,255,255,.9)'; ctx.lineWidth = 5; rr(ctx, -52, -96, 104, 96, 14); ctx.stroke();
-    face(ctx, 0, -50, 1.5, 'wow');
+    ctx.strokeStyle = 'rgba(255,255,255,.9)'; ctx.lineWidth = 5;
+    rr(ctx, -WALL_W, -WALL_H, WALL_W * 2, WALL_H, 16); ctx.stroke();
+    // 顶部黄色警示条（"此路不通"的视觉信号）
+    ctx.fillStyle = '#ffd642';
+    rr(ctx, -WALL_W, -WALL_H - 12, WALL_W * 2, 14, 7); ctx.fill();
+    ctx.fillStyle = 'rgba(120,70,0,.55)';
+    ctx.font = '900 11px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('×', 0, -WALL_H - 1);
+    ctx.textAlign = 'left';
+    face(ctx, 0, -WALL_H * 0.55, 1.7, 'wow');
   }
 
   // 小火车（占一条车道，只能变道躲开）
-  const TRAIN_W = .42, TRAIN_H = 138;
+  const TRAIN_W = .42, TRAIN_H = 152;
   function drawTrain(o){
     const sF = proj(o.z), sB = proj(o.z + o.len);
     const xF = xOf(o.off, o.z), xB = xOf(o.off, o.z + o.len);
@@ -2112,7 +2124,7 @@
       const stq = (q.match(/state=(\w+)/) || [])[1] || '';
       if (stq === 'jump'){ P.air = true; P.vy = 40; P.y = 150; }
       else if (stq === 'slide'){ P.slide = .42; P.crouch = 1; }
-      const spread = [[-1, 14, 'cone'], [0, 20, 'hurdle'], [1, 27, 'bar'], [-1, 32, 'wall'], [-1, 6, 'crate'], [1, 9, 'cat']];
+      const spread = [[-1, 12, 'wall'], [0, 12, 'hurdle'], [1, 12, 'bar'], [-1, 26, 'cone'], [1, 26, 'cat'], [0, 6, 'crate']];
       for (const [l, z, k] of spread) addObj(k, l, z);
       addObj('star', 0, 16); addObj('star', 0, 11); addObj('shield', 1, 4); addObj('magnet', -1, 8);
       addObj('train', 1, 20, { len: 16, long: true });
