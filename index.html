@@ -350,6 +350,7 @@
 
   const P = { x: 0, tx: 0, y: 0, vy: 0, air: false, slide: 0, lean: 0, crouch: 0, stretch: 1 };
   const SLIDE_T = .62;
+  const ZW_TIME = 4.2;   // THE WORLD 持续秒数
   let objs = [];
   let parts = [];
   let pops = [];
@@ -1599,7 +1600,7 @@
     const arr = [];
     if (G.shield) arr.push('<div class="buff">护盾 ON</div>');
     if (G.magnet > 0) arr.push('<div class="buff">磁铁 <span class="bar"><i style="width:' + Math.round(G.magnet / 9 * 100) + '%"></i></span></div>');
-    if (G.zw > 0) arr.push('<div class="buff" style="color:#7b61ff">⏱ 时停 <span class="bar"><i style="width:' + Math.round(G.zw / 2.6 * 100) + '%;background:#8b7bff"></i></span></div>');
+    if (G.zw > 0) arr.push('<div class="buff" style="color:#7b61ff">⏱ 时停 <span class="bar"><i style="width:' + Math.round(G.zw / ZW_TIME * 100) + '%;background:#8b7bff"></i></span></div>');
     const html = arr.join('');
     if (html !== lastBuffs){ elBuffs.innerHTML = html; lastBuffs = html; }
   }
@@ -1880,7 +1881,7 @@
       G.shield = true; popText(sx, sy - 10, '护盾 GET!', '#7fc8ff');
       burst(sx, sy, '#7fc8ff', 14, 260, 70);
     } else if (o.kind === 'slow'){
-      G.zw = 2.6; G.zwFlash = 1.4;
+      G.zw = ZW_TIME; G.zwFlash = 1.6;
       popText(sx, sy - 10, 'THE WORLD!', '#a98bff');
       burst(sx, sy, '#a98bff', 20, 280, 80);
       burst(sx, sy, '#ffffff', 10, 180, 40);
@@ -2188,7 +2189,7 @@
       addObj('train', 1, 20, { len: 16, long: true });
       say('稳稳的');
       updateScore(true);
-      if (q.indexOf('zw=1') >= 0){ G.zw = 2.6; G.zwFlash = 1.4; }
+      if (q.indexOf('zw=1') >= 0){ G.zw = ZW_TIME; G.zwFlash = 1.6; }
       if (shotParam === 'over'){ G.dist = 806; G.stars = 23; G.best = 520; updateScore(true); gameOver(); }
     }
     if (q.indexOf('test=1') >= 0){
